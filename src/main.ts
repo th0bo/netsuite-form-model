@@ -1,15 +1,17 @@
 import * as tf from '@tensorflow/tfjs';
 
-// Create a simple model.
-const model = tf.sequential();
-model.add(tf.layers.dense({units: 1, inputShape: [1]}));
+// // Generate some synthetic data for training. (y = 2x - 1)
+// const xs = tf.tensor2d([-1, 0, 1, 2, 3, 4], [6, 1]);
+// const ys = tf.tensor2d([1, 0, -1, -2.5, -3, -3], [6, 1]);
 
-// Prepare the model for training: Specify the loss and the optimizer.
-model.compile({loss: 'meanSquaredError', optimizer: 'sgd'});
-
-// Generate some synthetic data for training. (y = 2x - 1)
-const xs = tf.tensor2d([-1, 0, 1, 2, 3, 4], [6, 1]);
-const ys = tf.tensor2d([1, 0, -1, -2.5, -3, -3], [6, 1]);
+const oneHotEncode = <T>(elements: T[], group: T[]) => {
+  return tf.oneHot(
+    tf.tensor1d(
+      elements.map(element => group.indexOf(element)),
+      'int32'
+    ), group.length
+  );
+}
 
 const ueTypes = [
   "APPROVE",
@@ -37,9 +39,25 @@ const ueTypes = [
   "XEDIT"
 ];
 
-tf.oneHot(tf.tensor1d(["APPROVE", "EMAIL", "EMAIL", "VIEW", "EMAIL"], 'int32'), ueTypes.length).print();
+const userRoles = [
+  "ADMIN",
+  "SALES",
+  "DEV",
+];
+
+const xs2 = oneHotEncode(["APPROVE", "EMAIL", "EMAIL", "VIEW", "EMAIL", "EMAIL", "EMAIL", "EMAIL", "EMAIL"], ueTypes);
+const ys2 = oneHotEncode(["ADMIN", "SALES", "SALES", "ADMIN", "SALES", "DEV", "SALES", "SALES", "SALES"], userRoles);
+
+// Create a simple model.
+const inputs = tf.input({ shape: [ueTypes.length] });
+const layer = tf.layers.dense({units: 3, inputShape: [ueTypes.length]});
+const outputs = layer.apply(inputs) as tf.SymbolicTensor[];
+const model = tf.model({ inputs, outputs });
+
+// Prepare the model for training: Specify the loss and the optimizer.
+model.compile({loss: 'meanSquaredError', optimizer: 'sgd'});
 
 // Train the model using the data.
-model.fit(xs, ys, {epochs: 250}).then(() => {
-  console.log(model.predict(tf.tensor2d([20], [1, 1])).toString());
+model.fit(xs2, ys2, {epochs: 250}).then(() => {
+  console.log(model.predict(oneHotEncode(['EMAIL', 'APPROVE'], ueTypes)).toString());
 });
